@@ -25,15 +25,27 @@ class Expr(object):
         self.data = fixParens(expr.strip())
 
     def __str__(self):
-        if self.typ == 0:
-            return self.v
-        elif self.typ == 1:
-            return "\\%s.%s" % (self.v, str(self.e))
-        elif self.typ == 2:
-            if self.e2.typ == 0:
-                return "%s %s" % (str(self.e1), str(self.e2))
-            else:
-                return "%s (%s)" % (str(self.e1), str(self.e2))
+        s = ""
+        incomplete = [self]
+        while len(incomplete) > 0:
+            cur = incomplete.pop()
+            if isinstance(cur, str):
+                s += cur
+            elif cur.typ == 0:
+                s += cur.v
+            elif cur.typ == 1:
+                s += '\\%s.' % cur.v
+                incomplete.append(cur.e)
+            elif cur.typ == 2:
+                if cur.e2.typ == 0:
+                    incomplete.append(cur.e2)
+                else:
+                    incomplete.append(')')
+                    incomplete.append(cur.e2)
+                    incomplete.append('(')
+                incomplete.append(' ')
+                incomplete.append(cur.e1)
+        return s
 
     @staticmethod
     def parse(expr):
@@ -49,6 +61,8 @@ class Expr(object):
                 unparsed.append(next)
 
         return e
+
+    #def subst(self, x, v):
 
     def parseOne(self):
         if self.data[0] == '\\':
