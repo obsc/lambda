@@ -21,13 +21,13 @@ typ = 0 : Variable
       2 : Application
 """
 class Expr(object):
-    def __init__(self, expr):
+    def __init__(self, expr, env):
         self.data = fixParens(expr.strip())
+        self.env = env
 
     def __str__(self):
         s = ""
         incomplete = [self]
-        print
 
         while len(incomplete) > 0:
             cur = incomplete.pop()
@@ -51,11 +51,11 @@ class Expr(object):
         return fixParens(s)
 
     @staticmethod
-    def parse(expr):
+    def parse(expr, env):
         if not validParens(expr):
             raise ParseError("Invalid Parenthesizing")
         
-        e = Expr(expr)
+        e = Expr(expr, env)
         unparsed = [e]
 
         while len(unparsed) > 0:
@@ -71,29 +71,43 @@ class Expr(object):
         while len(incomplete) > 0:
             cur = incomplete.pop()
             if cur.typ == 0 and cur.v == v:
-                cur.copy(e)
+                cur.set(e.copy())
             elif cur.typ == 1 and cur.v != v:
                 incomplete.append(cur.e)
             elif cur.typ == 2:
                 incomplete.append(cur.e1)
                 incomplete.append(cur.e2)
 
-    def copy(self, e):
-        if self.typ != 2 and e.typ == 2:
+    def set(self, e):
+        if self.typ != 2:
             del self.v
-        if self.typ == 1 and e.typ != 1:
+        if self.typ == 1:
             del self.e
-        if self.typ == 2 and e.typ != 2:
+        if self.typ == 2:
             del self.e1
             del self.e2
         self.typ = e.typ
-        if self.typ == 0 or self.typ == 1:
+        self.env = e.env
+        if self.typ != 2:
             self.v = e.v
         if self.typ == 1:
             self.e = e.e
         if self.typ == 2:
             self.e1 = e.e1
             self.e2 = e.e2
+
+    def copy(self):
+        e_copy = Expr('', self.env)
+        del e_copy.data
+        e_copy.typ = self.typ
+        if self.typ != 2:
+            e_copy.v = self.v
+        if self.typ == 1:
+            e_copy.e = self.e.copy()
+        elif self.typ == 2:
+            e_copy.e1 = self.e1.copy()
+            e_copy.e2 = self.e2.copy()
+        return e_copy
 
     def parseOne(self):
         if self.data[0] == '\\':
@@ -121,6 +135,9 @@ class Expr(object):
         v = self.data[1:pos].strip()
         e = self.data[pos+1:].strip()
 
+        if len(e) == 0:
+            raise ParseError("Invalid function: missing body")
+
         if ' ' in v:
             v = v.split()
             e = '\\%s.%s' % (' '.join(v[1:]), e)
@@ -129,28 +146,30 @@ class Expr(object):
 
         self.typ = 1 #Lambda
         self.v = v
-        self.e = Expr(e)
+        self.e = Expr(e, self.env)
 
         del self.data
         return [self.e]
 
     def parseApply(self):
         start = -1
-        if self.data[-1] == ')':
+        if self.data[-1] == ')' and self.data[-2] != '(':
             start = getLastParens(self.data)[0]
         else:
-            for i in xrange(len(self.data)-1, -1, -1):
+            for i in xrange(len(self.data)-2, -1, -1):
                 if self.data[i] == ' ' or self.data[i] == ')':
-                    start = i
+                    start = i + 1
                     break
 
         self.typ = 2 #Apply
-        self.e1 = Expr(self.data[:start])
-        self.e2 = Expr(self.data[start:])
+        self.e1 = Expr(self.data[:start], self.env)
+        self.e2 = Expr(self.data[start:], self.env)
 
         del self.data
         return [self.e1, self.e2]
 
     def validateVar(self, v):
+        if v == '()':
+            return
         if len(v) == 0 or any(c in v for c in ('(', ')', '\\', '.', '=')):
             raise ParseError("Invalid variable name")

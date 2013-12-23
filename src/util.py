@@ -10,7 +10,9 @@ def getParens(s):
             if s[i] == '(':
                 start.append(i)
             if s[i] == ')':
-                pairs.append((start.pop(), i))
+                prev = start.pop()
+                if prev < i - 1:
+                    pairs.append((prev, i))
     except:
         return None
     if len(start) > 0:
