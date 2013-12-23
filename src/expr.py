@@ -27,6 +27,8 @@ class Expr(object):
     def __str__(self):
         s = ""
         incomplete = [self]
+        print
+
         while len(incomplete) > 0:
             cur = incomplete.pop()
             if isinstance(cur, str):
@@ -34,7 +36,8 @@ class Expr(object):
             elif cur.typ == 0:
                 s += cur.v
             elif cur.typ == 1:
-                s += '\\%s.' % cur.v
+                s += '(\\%s.' % cur.v
+                incomplete.append(')')
                 incomplete.append(cur.e)
             elif cur.typ == 2:
                 if cur.e2.typ == 0:
@@ -45,7 +48,7 @@ class Expr(object):
                     incomplete.append('(')
                 incomplete.append(' ')
                 incomplete.append(cur.e1)
-        return s
+        return fixParens(s)
 
     @staticmethod
     def parse(expr):
@@ -62,7 +65,35 @@ class Expr(object):
 
         return e
 
-    #def subst(self, x, v):
+    def subst(self, v, e):
+        incomplete = [self]
+
+        while len(incomplete) > 0:
+            cur = incomplete.pop()
+            if cur.typ == 0 and cur.v == v:
+                cur.copy(e)
+            elif cur.typ == 1 and cur.v != v:
+                incomplete.append(cur.e)
+            elif cur.typ == 2:
+                incomplete.append(cur.e1)
+                incomplete.append(cur.e2)
+
+    def copy(self, e):
+        if self.typ != 2 and e.typ == 2:
+            del self.v
+        if self.typ == 1 and e.typ != 1:
+            del self.e
+        if self.typ == 2 and e.typ != 2:
+            del self.e1
+            del self.e2
+        self.typ = e.typ
+        if self.typ == 0 or self.typ == 1:
+            self.v = e.v
+        if self.typ == 1:
+            self.e = e.e
+        if self.typ == 2:
+            self.e1 = e.e1
+            self.e2 = e.e2
 
     def parseOne(self):
         if self.data[0] == '\\':
