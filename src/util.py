@@ -6,7 +6,7 @@ def getParens(s):
 
     pairs, start = [], []
     try:
-        for i in range(len(s)):
+        for i in xrange(len(s)):
             if s[i] == '(':
                 start.append(i)
             if s[i] == ')':
@@ -17,7 +17,7 @@ def getParens(s):
         return None
     return pairs 
 
-def getLast(s):
+def getLastParens(s):
     """
     Returns the indices of the last pair of parenthesis.
     Returns None if there are no valid pairs. 
@@ -29,17 +29,23 @@ def getLast(s):
 
 def hasParens(s):
     """
-    Returns true if there are valid parenthesizing.
+    Returns true if there is at least 1 valid parenthesis
     """
-    if getParens(s) is not None and len(getParens(s)) > 0:
-        return True
-    return False
+    return getParens(s) is not None and len(getParens(s)) > 0
+
+def validParens(s):
+    """
+    Returns true if s has valid parenthesizing
+    """
+    return getParens(s) is not None
 
 def fixParens(s):
     """
     Removes redundant outer parenthesis from an expression
     """
-    while getLast(s) == (0, len(s) - 1):
+    while getLastParens(s) == (0, len(s) - 1):
+        if len(s) == 2:
+            break
         s = s[1 : len(s) - 1].strip()
     return s
 
