@@ -152,5 +152,5 @@ class Expr(object):
         return [self.e1, self.e2]
 
     def validateVar(self, v):
-        if len(v) == 0 or any(c in v for c in ('(', ')', '\\', '.')):
+        if len(v) == 0 or any(c in v for c in ('(', ')', '\\', '.', '=')):
             raise ParseError("Invalid variable name")
