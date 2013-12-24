@@ -1,5 +1,6 @@
 from expr import *
 
+VERBOSE = True
 GLOBALS = {}
 
 def removeComments(s):
@@ -10,7 +11,7 @@ def loadFile(filename):
     f = open(filename)
 
     for line in f:
-        evalGlobal(line)
+        evalGlobal(line.strip())
 
     f.close()
 
@@ -18,7 +19,7 @@ def evalGlobal(s):
     if s.strip() == '=':
         print GLOBALS
         return
-    s = removeComments(s)
+    s = removeComments(s).strip()
     if '=' in s:
         pos = s.find('=')
         v = s[:pos].strip()
@@ -47,7 +48,9 @@ def evalOne(s):
             while len(incomplete) > 0:
                 cur = incomplete.pop()
                 if cur.typ == 0:
-                    if cur.v in cur.env:
+                    if cur.v == "print":
+                        cur.typ = 3
+                    elif cur.v in cur.env:
                         cur.set(cur.env[cur.v].copy())
                         incomplete.append(cur)
                     elif cur.v != '()':
@@ -55,7 +58,39 @@ def evalOne(s):
                         return None
                 elif cur.typ == 2:
                     if prev == cur.e2:
-                        if cur.e1.typ == 1:
+                        if cur.e1.typ == 3 and cur.e1.v == "print":
+                            if cur.e2.typ == 3:
+                                print chr(cur.e2.v)
+                            elif cur.e2.typ == 1:
+                                num = cur.e2.copy()
+                                cur.e2.typ = 2
+                                del cur.e2.e
+                                
+                                cur.e2.e1 = Expr('', num.env)
+                                del cur.e2.e1.data
+                                cur.e2.e1.typ = 2
+                                cur.e2.e1.e1 = num
+                                cur.e2.e1.e2 = Expr('', num.env)
+                                del cur.e2.e1.e2.data
+                                cur.e2.e1.e2.typ = 3
+                                cur.e2.e1.e2.v = 'next'
+
+                                cur.e2.e2 = Expr('', num.env)
+                                del cur.e2.e2.data
+                                cur.e2.e2.typ = 3
+                                cur.e2.e2.v = 0
+                                print(cur)
+                                incomplete.append(cur)
+                                incomplete.append(cur.e2)
+                            else:
+                                print "Unable to print"
+                                return None
+                        elif cur.e1.typ == 3 and cur.e1.v == 'next':
+                            cur.typ = 3
+                            cur.v = cur.e2.v + 1
+                            del cur.e1
+                            del cur.e2
+                        elif cur.e1.typ == 1:
                             cur.e1.e.subst(cur.e1.v, cur.e2)
                             cur.set(cur.e1.e.copy())
                             incomplete.append(cur)
@@ -68,7 +103,8 @@ def evalOne(s):
                         incomplete.append(cur.e1)
                 prev = cur
 
-            print str(e)
+            if VERBOSE:
+                print str(e)
             return e
     except ParseError as error:
         print error
