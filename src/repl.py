@@ -6,12 +6,18 @@ GLOBALS = {}
 def removeComments(s):
     return s.split('#')[0]
 
+def copyGlobals():
+    g_copy = {}
+    for k in GLOBALS:
+        g_copy[k] = GLOBALS[k].copy()
+    return g_copy
+
 def loadFile(filename):
     print "Loading file: %s" % filename
     f = open(filename)
 
     for line in f:
-        evalGlobal(line.strip())
+        evalGlobal(line)
 
     f.close()
 
@@ -41,66 +47,60 @@ def evalGlobal(s):
 def evalOne(s):
     try:
         if len(s) > 0:
-            e = Expr.parse(s, GLOBALS.copy())
+            e = Expr.parse(s, copyGlobals())
             incomplete = [e]
             prev = None
 
             while len(incomplete) > 0:
                 cur = incomplete.pop()
                 if cur.typ == 0:
-                    if cur.v == "print":
+                    if cur.l == "print":
                         cur.typ = 3
-                    elif cur.v in cur.env:
-                        cur.set(cur.env[cur.v].copy())
+                    elif cur.l in cur.env:
+                        cur.set(cur.env[cur.l].copy())
                         incomplete.append(cur)
-                    elif cur.v != '()':
-                        print "Unbound Variable: %s" % cur.v
+                    elif cur.l != '()':
+                        print "Unbound Variable: %s" % cur.l
                         return None
                 elif cur.typ == 2:
-                    if prev == cur.e2:
-                        if cur.e1.typ == 3 and cur.e1.v == "print":
-                            if cur.e2.typ == 3:
-                                print chr(cur.e2.v)
-                            elif cur.e2.typ == 1:
-                                num = cur.e2.copy()
-                                cur.e2.typ = 2
-                                del cur.e2.e
+                    if prev == cur.r:
+                        if cur.l.typ == 3 and cur.l.l == "print":
+                            if cur.r.typ == 3:
+                                print chr(cur.r.l)
+                            elif cur.r.typ == 1:
+                                num = cur.r.copy()
+                                cur.r.typ = 2
                                 
-                                cur.e2.e1 = Expr('', num.env)
-                                del cur.e2.e1.data
-                                cur.e2.e1.typ = 2
-                                cur.e2.e1.e1 = num
-                                cur.e2.e1.e2 = Expr('', num.env)
-                                del cur.e2.e1.e2.data
-                                cur.e2.e1.e2.typ = 3
-                                cur.e2.e1.e2.v = 'next'
+                                cur.r.l = Expr('', num.env)
+                                cur.r.l.typ = 2
+                                cur.r.l.l = num
+                                cur.r.l.r = Expr('', num.env)
+                                cur.r.l.r.typ = 3
+                                cur.r.l.r.l = 'next'
 
-                                cur.e2.e2 = Expr('', num.env)
-                                del cur.e2.e2.data
-                                cur.e2.e2.typ = 3
-                                cur.e2.e2.v = 0
+                                cur.r.r = Expr('', num.env)
+                                cur.r.r.typ = 3
+                                cur.r.r.v = 0
                                 print(cur)
                                 incomplete.append(cur)
-                                incomplete.append(cur.e2)
+                                incomplete.append(cur.r)
                             else:
                                 print "Unable to print"
                                 return None
-                        elif cur.e1.typ == 3 and cur.e1.v == 'next':
+                        elif cur.l.typ == 3 and cur.l.l == 'next':
                             cur.typ = 3
-                            cur.v = cur.e2.v + 1
-                            del cur.e1
-                            del cur.e2
-                        elif cur.e1.typ == 1:
-                            cur.e1.e.subst(cur.e1.v, cur.e2)
-                            cur.set(cur.e1.e.copy())
+                            cur.l = cur.r.l + 1
+                        elif cur.l.typ == 1:
+                            cur.l.r.subst(cur.l.l, cur.r)
+                            cur.set(cur.l.r.copy())
                             incomplete.append(cur)
                         else:
                             print "Unable to Apply non-function"
                             return None
                     else:
                         incomplete.append(cur)
-                        incomplete.append(cur.e2)
-                        incomplete.append(cur.e1)
+                        incomplete.append(cur.r)
+                        incomplete.append(cur.l)
                 prev = cur
 
             if VERBOSE:

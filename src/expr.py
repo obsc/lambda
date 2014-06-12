@@ -10,7 +10,7 @@ class ParseError(Exception):
         return repr(self.value)
 
 """
-A single expression.
+A single expression divided into left and right.
 Expr = | v
        | \\v.e
        | e1 e2
@@ -22,118 +22,109 @@ typ = 0 : Variable
 """
 class Expr(object):
     def __init__(self, expr, env):
-        self.data = fixParens(expr.strip())
+        self.l = fixParens(expr.strip())
         self.env = env
 
     def __str__(self):
-        s = ""
-        incomplete = [self]
-
-        while len(incomplete) > 0:
-            cur = incomplete.pop()
-            if isinstance(cur, str):
-                s += cur
-            elif cur.typ == 0:
-                s += cur.v
-            elif cur.typ == 1:
-                s += '(\\%s.' % cur.v
-                incomplete.append(')')
-                incomplete.append(cur.e)
-            elif cur.typ == 2:
-                if cur.e2.typ == 0:
-                    incomplete.append(cur.e2)
-                else:
-                    incomplete.append(')')
-                    incomplete.append(cur.e2)
-                    incomplete.append('(')
-                incomplete.append(' ')
-                incomplete.append(cur.e1)
-        return fixParens(s)
+        def toString(exprs, s):
+            if len(exprs) == 0:
+                return fixParens(s)
+            expr = exprs.pop()
+            if isinstance(expr, str):
+                return (lambda : toString(exprs, s + expr))
+            if expr.typ == 0:
+                return (lambda : toString(exprs, s + expr.l))
+            if expr.typ == 1:
+                exprs.extend([')', expr.r])
+                return (lambda : toString(exprs, s + '(\\%s.' % expr.l))
+            if expr.typ == 2:
+                exprs.extend([expr.r, ' ', expr.l] if expr.r.typ == 0 
+                                else [')', expr.r, ' (', expr.l])
+                return (lambda : toString(exprs, s))
+        return tail(toString)([self], '')
 
     @staticmethod
     def parse(expr, env):
         if not validParens(expr):
             raise ParseError("Invalid Parenthesizing")
-        
-        e = Expr(expr, env)
-        unparsed = [e]
 
-        while len(unparsed) > 0:
-            cur = unparsed.pop()
-            for next in cur.parseOne():
-                unparsed.append(next)
+        expr = Expr(expr, env)
+        exprs = [expr]
 
-        return e
+        while len(exprs) > 0:
+            e = exprs.pop()
+            exprs.extend(e.parseOne())
+
+        return expr
 
     def subst(self, v, e):
-        incomplete = [self]
+        exprs = [self]
+        while len(exprs) > 0:
+            expr = exprs.pop()
+            if expr.typ == 0 and expr.l == v:
+                expr.set(e.copy())
+            elif expr.typ == 1 and expr.l != v:
+                exprs.append(expr.r)
+            elif expr.typ == 2:
+                exprs.append(expr.l)
+                exprs.append(expr.r)
 
-        while len(incomplete) > 0:
-            cur = incomplete.pop()
-            if cur.typ == 0 and cur.v == v:
-                cur.set(e.copy())
-            elif cur.typ == 1 and cur.v != v:
-                incomplete.append(cur.e)
-            elif cur.typ == 2:
-                incomplete.append(cur.e1)
-                incomplete.append(cur.e2)
-
-    def set(self, e):
-        if self.typ != 2:
-            del self.v
-        if self.typ == 1:
-            del self.e
-        if self.typ == 2:
-            del self.e1
-            del self.e2
-        self.typ = e.typ
-        self.env = e.env
-        if self.typ != 2:
-            self.v = e.v
-        if self.typ == 1:
-            self.e = e.e
-        if self.typ == 2:
-            self.e1 = e.e1
-            self.e2 = e.e2
+    def set(self, expr):
+        self.typ = expr.typ
+        self.env = expr.env
+        self.l = expr.l
+        self.r = expr.r
 
     def copy(self):
         e_copy = Expr('', self.env)
-        del e_copy.data
-        e_copy.typ = self.typ
-        if self.typ != 2:
-            e_copy.v = self.v
-        if self.typ == 1:
-            e_copy.e = self.e.copy()
-        elif self.typ == 2:
-            e_copy.e1 = self.e1.copy()
-            e_copy.e2 = self.e2.copy()
+
+        def copyExprs(exprs):
+            if len(exprs) == 0:
+                return
+            e_copy, expr = exprs.pop()
+            e_copy.typ = expr.typ
+
+            if expr.typ == 0 or expr.typ == 1:
+                e_copy.l = expr.l
+            else:
+                e_copy.l = Expr('', expr.l.env)
+                exprs.append((e_copy.l, expr.l))
+
+            if expr.typ == 0:
+                e_copy.r = expr.r
+            else:
+                e_copy.r = Expr('', expr.r.env)
+                exprs.append((e_copy.r, expr.r))
+
+            return (lambda : copyExprs(exprs))
+
+        tail(copyExprs)([(e_copy, self)])
         return e_copy
 
     def parseOne(self):
-        if self.data[0] == '\\':
+        if self.l[0] == '\\':
             return self.parseLambda()
 
-        if ' ' in self.data or hasParens(self.data):
+        if ' ' in self.l or hasParens(self.l):
             return self.parseApply()
 
         return self.parseVar()
 
     def parseVar(self):
-        self.validateVar(self.data)
+        self.validateVar(self.l)
 
         self.typ = 0 #Var
-        self.v = self.data
+        self.r = None
 
-        del self.data
         return []
 
     def parseLambda(self):
-        pos = self.data.find('.')
+        pos = self.l.find('.')
         if pos == -1:
             raise ParseError("Invalid function: missing '.'")
 
-        v = self.data[1:pos].strip()
-        e = self.data[pos+1:].strip()
+        v = self.l[1:pos].strip()
+        e = self.l[pos+1:].strip()
 
         if len(e) == 0:
             raise ParseError("Invalid function: missing body")
@@ -145,28 +136,26 @@ class Expr(object):
         self.validateVar(v)
 
         self.typ = 1 #Lambda
-        self.v = v
-        self.e = Expr(e, self.env)
+        self.l = v
+        self.r = Expr(e, self.env)
 
-        del self.data
-        return [self.e]
+        return [self.r]
 
     def parseApply(self):
         start = -1
-        if self.data[-1] == ')' and self.data[-2] != '(':
-            start = getLastParens(self.data)[0]
+        if self.l[-1] == ')' and self.l[-2] != '(':
+            start = getLastParens(self.l)[0]
         else:
-            for i in xrange(len(self.data)-2, -1, -1):
-                if self.data[i] == ' ' or self.data[i] == ')':
+            for i in xrange(len(self.l)-2, -1, -1):
+                if self.l[i] == ' ' or self.l[i] == ')':
                     start = i + 1
                     break
 
         self.typ = 2 #Apply
-        self.e1 = Expr(self.data[:start], self.env)
-        self.e2 = Expr(self.data[start:], self.env)
+        l,r = self.l[:start], self.l[start:]
+        self.l, self.r = Expr(l, self.env), Expr(r, self.env)
 
-        del self.data
-        return [self.e1, self.e2]
+        return [self.l, self.r]
 
     def validateVar(self, v):
         if v == '()':
