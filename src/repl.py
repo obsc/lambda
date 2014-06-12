@@ -23,7 +23,8 @@ def loadFile(filename):
 
 def evalGlobal(s):
     if s.strip() == '=':
-        print GLOBALS
+        for k in GLOBALS:
+            print '%s : %s' % (k, str(GLOBALS[k]))
         return
     s = removeComments(s).strip()
     if '=' in s:
