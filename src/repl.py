@@ -3,15 +3,24 @@ from expr import *
 VERBOSE = True
 GLOBALS = {}
 
+"""
+Removes the comments from a line of code
+"""
 def removeComments(s):
     return s.split('#')[0]
 
+"""
+Makes a deep copy of the globals
+"""
 def copyGlobals():
     g_copy = {}
     for k in GLOBALS:
         g_copy[k] = GLOBALS[k].copy()
     return g_copy
 
+"""
+Loads and runs a single file
+"""
 def loadFile(filename):
     print "Loading file: %s" % filename
     f = open(filename)
@@ -21,6 +30,9 @@ def loadFile(filename):
 
     f.close()
 
+"""
+Evaluates a single expression on the global scope
+"""
 def evalGlobal(s):
     if s.strip() == '=':
         for k in GLOBALS:
@@ -45,6 +57,9 @@ def evalGlobal(s):
     else:
         evalOne(s)
 
+"""
+Evaluates a single expression
+"""
 def evalOne(s):
     try:
         if len(s) > 0:
@@ -111,6 +126,9 @@ def evalOne(s):
         print error
     return None
 
+"""
+The repl
+"""
 def main():
     while True:
         userInput = raw_input('>>> ')

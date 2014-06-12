@@ -1,8 +1,8 @@
+"""
+Wrapper function to enable tail recursion
+Note: This cannot be used as a decorator
+"""
 def tail(func):
-    """
-    Wrapper function to enable tail recursion
-    Note: This cannot be used as a decorator
-    """
     def loop(*args, **kwargs):
         f = (lambda : func(*args, **kwargs))
         while callable(f):
@@ -10,11 +10,11 @@ def tail(func):
         return f
     return loop
 
+"""
+Returns a list of tuples of start the starting and ending index of
+all matching parenthesis in s. Returns None if input is invalid
+"""
 def getParens(s):
-    """
-    Returns a list of tuples of start the starting and ending index of
-    all matching parenthesis in s. Returns None if input is invalid
-    """
     pairs, start = [], []
     try:
         for i in xrange(len(s)):
@@ -30,32 +30,32 @@ def getParens(s):
         return None
     return pairs 
 
+"""
+Returns the indices of the last pair of parenthesis.
+Returns None if there are no valid pairs. 
+"""
 def getLastParens(s):
-    """
-    Returns the indices of the last pair of parenthesis.
-    Returns None if there are no valid pairs. 
-    """
     try:
         return getParens(s)[-1]
     except:
         return None
 
+"""
+Returns true if there is at least 1 valid parenthesis
+"""
 def hasParens(s):
-    """
-    Returns true if there is at least 1 valid parenthesis
-    """
     return getParens(s) is not None and len(getParens(s)) > 0
 
+"""
+Returns true if s has valid parenthesizing
+"""
 def validParens(s):
-    """
-    Returns true if s has valid parenthesizing
-    """
     return getParens(s) is not None
 
+"""
+Removes redundant outer parenthesis from an expression
+"""
 def fixParens(s):
-    """
-    Removes redundant outer parenthesis from an expression
-    """
     while getLastParens(s) == (0, len(s) - 1):
         if len(s) == 2:
             break

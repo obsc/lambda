@@ -25,6 +25,9 @@ class Expr(object):
         self.l = fixParens(expr.strip())
         self.env = env
 
+    """
+    Converts an expression tree to a string
+    """
     def __str__(self):
         def toString(exprs, s):
             if len(exprs) == 0:
@@ -43,6 +46,9 @@ class Expr(object):
                 return (lambda : toString(exprs, s))
         return tail(toString)([self], '')
 
+    """
+    Parses and generates an expression tree from a string
+    """
     @staticmethod
     def parse(expr, env):
         if not validParens(expr):
@@ -57,6 +63,9 @@ class Expr(object):
 
         return expr
 
+    """
+    Substitutes the expression e for the variable v
+    """
     def subst(self, v, e):
         exprs = [self]
         while len(exprs) > 0:
@@ -69,12 +78,18 @@ class Expr(object):
                 exprs.append(expr.l)
                 exprs.append(expr.r)
 
+    """
+    Sets one expression to the same data as another
+    """
     def set(self, expr):
         self.typ = expr.typ
         self.env = expr.env
         self.l = expr.l
         self.r = expr.r
 
+    """
+    Makes a deep copy of an expression
+    """
     def copy(self):
         e_copy = Expr('', self.env)
 
@@ -101,6 +116,9 @@ class Expr(object):
         tail(copyExprs)([(e_copy, self)])
         return e_copy
 
+    """
+    Parses a single expression
+    """
     def parseOne(self):
         if self.l[0] == '\\':
             return self.parseLambda()
@@ -110,14 +128,22 @@ class Expr(object):
 
         return self.parseVar()
 
+    """
+    Parses a single variable
+    typ : 0
+    """
     def parseVar(self):
-        self.validateVar(self.l)
+        Expr.validateVar(self.l)
 
         self.typ = 0 #Var
         self.r = None
 
         return []
 
+    """
+    Parses a lambda function
+    type : 1
+    """
     def parseLambda(self):
         pos = self.l.find('.')
         if pos == -1:
@@ -133,7 +159,7 @@ class Expr(object):
             v = v.split()
             e = '\\%s.%s' % (' '.join(v[1:]), e)
             v = v[0]
-        self.validateVar(v)
+        Expr.validateVar(v)
 
         self.typ = 1 #Lambda
         self.l = v
@@ -141,6 +167,10 @@ class Expr(object):
 
         return [self.r]
 
+    """
+    Parses a function application
+    typ : 2
+    """
     def parseApply(self):
         start = -1
         if self.l[-1] == ')' and self.l[-2] != '(':
@@ -151,13 +181,17 @@ class Expr(object):
                     start = i + 1
                     break
 
-        self.typ = 2 #Apply
+        self.typ = 2
         l,r = self.l[:start], self.l[start:]
         self.l, self.r = Expr(l, self.env), Expr(r, self.env)
 
         return [self.l, self.r]
 
-    def validateVar(self, v):
+    """
+    Checks that v is a valid variable name
+    """
+    @staticmethod
+    def validateVar(v):
         if v == '()':
             return
         if len(v) == 0 or any(c in v for c in ('(', ')', '\\', '.', '=')):
