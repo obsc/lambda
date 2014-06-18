@@ -1,5 +1,5 @@
 import sys
-from expr2 import *
+from expr import *
 
 VERBOSE = True
 GLOBALS = {}
@@ -47,8 +47,10 @@ def evalGlobal(s):
         if len(v) == 0:
             try:
                 loadFile(e)
-            except:
+            except IOError:
                 print "Invalid filename"
+            except RuntimeError:
+                print "Recursion depth exceeded"
         elif len(e) == 0:
             print "Invalid Syntax"
         else:
