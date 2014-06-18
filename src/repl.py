@@ -1,4 +1,5 @@
-from expr import *
+import sys
+from expr2 import *
 
 VERBOSE = True
 GLOBALS = {}
@@ -122,7 +123,7 @@ def evalOne(s):
             if VERBOSE:
                 print str(e)
             return e
-    except ParseError as error:
+    except (ParseError, FreeVariableException) as error:
         print error
     return None
 
@@ -134,4 +135,9 @@ def main():
         userInput = raw_input('>>> ')
         evalGlobal(userInput)
 
-main()
+if __name__ == '__main__':
+    try:
+        main()
+    except KeyboardInterrupt:
+        print '\nExiting...'
+        sys.exit(0)

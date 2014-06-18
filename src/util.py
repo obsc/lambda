@@ -1,16 +1,4 @@
 """
-Wrapper function to enable tail recursion
-Note: This cannot be used as a decorator
-"""
-def tail(func):
-    def loop(*args, **kwargs):
-        f = (lambda : func(*args, **kwargs))
-        while callable(f):
-            f = f()
-        return f
-    return loop
-
-"""
 Returns a list of tuples of start the starting and ending index of
 all matching parenthesis in s. Returns None if input is invalid
 """

@@ -10,6 +10,15 @@ class ParseError(Exception):
         return repr(self.value)
 
 """
+Free variables inside expression
+"""
+class FreeVariableException(Exception):
+    def __init__(self, value):
+        self.value = value
+    def __str__(self):
+        return repr(self.value)
+
+"""
 A single expression divided into left and right.
 Expr = | v
        | \\v.e
@@ -29,22 +38,23 @@ class Expr(object):
     Converts an expression tree to a string
     """
     def __str__(self):
-        def toString(exprs, s):
-            if len(exprs) == 0:
-                return fixParens(s)
-            expr = exprs.pop()
-            if isinstance(expr, str):
-                return (lambda : toString(exprs, s + expr))
-            if expr.typ == 0:
-                return (lambda : toString(exprs, s + expr.l))
-            if expr.typ == 1:
-                exprs.extend([')', expr.r])
-                return (lambda : toString(exprs, s + '(\\%s.' % expr.l))
-            if expr.typ == 2:
-                exprs.extend([expr.r, ' ', expr.l] if expr.r.typ == 0 
-                                else [')', expr.r, ' (', expr.l])
-                return (lambda : toString(exprs, s))
-        return tail(toString)([self], '')
+        s = ''
+        exprs = [self]
+
+        while len(exprs) > 0:
+            e = exprs.pop()
+            if isinstance(e, str):
+                s += e
+            elif e.typ == 0:
+                s += e.l
+            elif e.typ == 1:
+                exprs.extend([')', e.r])
+                s += '(\\%s.' % e.l
+            elif e.typ == 2:
+                exprs.extend([e.r, ' ', e.l] if e.r.typ == 0 
+                                else [')', e.r, ' (', e.l])
+
+        return fixParens(s)
 
     """
     Parses and generates an expression tree from a string
@@ -61,22 +71,22 @@ class Expr(object):
             e = exprs.pop()
             exprs.extend(e.parseOne())
 
+        expr.validateFreeVars()
         return expr
 
     """
     Substitutes the expression e for the variable v
     """
-    def subst(self, v, e):
+    def subst(self, v, expr):
         exprs = [self]
         while len(exprs) > 0:
-            expr = exprs.pop()
-            if expr.typ == 0 and expr.l == v:
-                expr.set(e.copy())
-            elif expr.typ == 1 and expr.l != v:
-                exprs.append(expr.r)
-            elif expr.typ == 2:
-                exprs.append(expr.l)
-                exprs.append(expr.r)
+            e = exprs.pop()
+            if e.typ == 0 and e.l == v:
+                e.set(expr.copy())
+            elif e.typ == 1 and e.l != v:
+                exprs.append(e.r)
+            elif e.typ == 2:
+                exprs.extend([e.l, e.r])
 
     """
     Sets one expression to the same data as another
@@ -91,30 +101,26 @@ class Expr(object):
     Makes a deep copy of an expression
     """
     def copy(self):
-        e_copy = Expr('', self.env)
+        expr_copy = Expr('', self.env)
+        exprs = [(expr_copy, self)]
 
-        def copyExprs(exprs):
-            if len(exprs) == 0:
-                return
-            e_copy, expr = exprs.pop()
-            e_copy.typ = expr.typ
+        while len(exprs) > 0:
+            e_copy, e = exprs.pop()
+            e_copy.typ = e.typ
 
-            if expr.typ == 0 or expr.typ == 1:
-                e_copy.l = expr.l
+            if e.typ == 0 or e.typ == 1:
+                e_copy.l = e.l
             else:
-                e_copy.l = Expr('', expr.l.env)
-                exprs.append((e_copy.l, expr.l))
+                e_copy.l = Expr('', e.l.env)
+                exprs.append((e_copy.l, e.l))
 
-            if expr.typ == 0:
-                e_copy.r = expr.r
+            if e.typ == 0:
+                e_copy.r = e.r
             else:
-                e_copy.r = Expr('', expr.r.env)
-                exprs.append((e_copy.r, expr.r))
+                e_copy.r = Expr('', e.r.env)
+                exprs.append((e_copy.r, e.r))
 
-            return (lambda : copyExprs(exprs))
-
-        tail(copyExprs)([(e_copy, self)])
-        return e_copy
+        return expr_copy
 
     """
     Parses a single expression
@@ -196,3 +202,21 @@ class Expr(object):
             return
         if len(v) == 0 or any(c in v for c in ('(', ')', '\\', '.', '=')):
             raise ParseError("Invalid variable name")
+
+    """
+    Checks that there are no free variables
+    """
+    def validateFreeVars(self):
+        exprs = [(self, [])]
+        while len(exprs) > 0:
+            e, bound = exprs.pop()
+
+            if e.typ == 0:
+                if e.l not in e.env and e.l not in bound:
+                    raise FreeVariableException("%s is a free variable" % e.l)
+            elif e.typ == 1:
+                new_bound = bound[:]
+                new_bound.append(e.l)
+                exprs.append((e.r, new_bound))
+            elif e.typ == 2:
+                exprs.extend([(e.l, bound), (e.r, bound)])
