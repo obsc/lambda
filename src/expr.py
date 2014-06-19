@@ -75,20 +75,6 @@ class Expr(object):
         return expr
 
     """
-    Substitutes the expression e for the variable v
-    """
-    def subst(self, v, expr):
-        exprs = [self]
-        while len(exprs) > 0:
-            e = exprs.pop()
-            if e.typ == 0 and e.l == v:
-                e.set(expr.copy())
-            elif e.typ == 1 and e.l != v:
-                exprs.append(e.r)
-            elif e.typ == 2:
-                exprs.extend([e.l, e.r])
-
-    """
     Sets one expression to the same data as another
     """
     def set(self, expr):
@@ -121,6 +107,26 @@ class Expr(object):
                 exprs.append((e_copy.r, e.r))
 
         return expr_copy
+
+    """
+    Replaces the current expression with the copy of another
+    """
+    def replace(self, expr):
+        self.set(expr.copy())
+
+    """
+    Substitutes the expression e for the variable v
+    """
+    def subst(self, v, expr):
+        exprs = [self]
+        while len(exprs) > 0:
+            e = exprs.pop()
+            if e.typ == 0 and e.l == v:
+                e.replace(expr)
+            elif e.typ == 1 and e.l != v:
+                exprs.append(e.r)
+            elif e.typ == 2:
+                exprs.extend([e.l, e.r])
 
     """
     Parses a single expression

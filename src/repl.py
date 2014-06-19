@@ -73,9 +73,8 @@ def evalOne(s):
             (e, flag) = exprs.pop()
             if e.typ == 0:
                 if e.l in e.env:
-                    e.set(e.env[e.l].copy())
+                    e.replace(e.env[e.l])
                     exprs.append((e, False))
-                # elif plugins
                 elif e.l != '()':
                     print "Unbound Variable: %s" % e.l
                     return None
